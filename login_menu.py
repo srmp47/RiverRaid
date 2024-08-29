@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 import login_menu_controller
 
+
 def login_user():
     username = entry_username.get()  # Get the username from the entry widget
     password = str(entry_password.get())  # Get the password from the entry widget

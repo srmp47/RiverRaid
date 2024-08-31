@@ -19,11 +19,13 @@ class Plane(pygame.sprite.Sprite):
         self.surf = pygame.image.load("images/blue_plane.png")
         self.rect = self.surf.get_rect()
         self.speed = 50
+        self.number_of_change_image = 10
+        self.is_destroying = False
         all_objects.add(self)
         self.is_rocket = False
 
     def move(self, key_pressed):
-        if not self.is_rocket:
+        if not self.is_rocket and not self.is_destroying:
             if key_pressed[K_UP]:
                 self.rect.move_ip(0, -self.speed)
             if key_pressed[K_DOWN]:
@@ -40,13 +42,29 @@ class Plane(pygame.sprite.Sprite):
                 self.rect.top = SCREEN_HEIGHT
             if self.rect.bottom < 0:
                 self.rect.bottom = 0
-        else:
+        elif self.is_rocket and not self.is_destroying:
             self.rect.move_ip(self.speed, 0)
             if self.rect.left > SCREEN_WIDTH:
                 self.surf = pygame.image.load("images/blue_plane.png")
                 self.rect.x = SCREEN_WIDTH / 4
                 self.rect.y = SCREEN_HEIGHT / 2
                 self.is_rocket = False
+
+    def destroy(self):
+        self.is_destroying = True
+        self.number_of_change_image = 10
+
+    def chang_image(self):
+        if self.number_of_change_image == 1:
+            self.surf = pygame.image.load("images/blue_plane.png")
+            self.rect.x = SCREEN_WIDTH / 4
+            self.rect.y = SCREEN_HEIGHT / 2
+            self.is_destroying = False
+            self.is_rocket = False
+        else:
+            self.number_of_change_image -= 1
+            self.surf = pygame.image.load(f"images/destroy_rocket{self.number_of_change_image}.png")
+
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self):
@@ -69,10 +87,10 @@ class Bomb(pygame.sprite.Sprite):
         bomb_image = pygame.image.load("images/bomb.png")
         bomb_image = pygame.transform.scale(bomb_image, (40, 40))
         self.surf = bomb_image
-        self.x_speed = 35
+        self.x_speed = 20
         self.y_speed = 0
-        self.x_acceleration = 2
-        self.y_acceleration = 4
+        self.x_acceleration = 1
+        self.y_acceleration = 2
         self.rect = self.surf.get_rect()
         all_objects.add(self)
         bombs.add(self)
@@ -83,22 +101,26 @@ class Bomb(pygame.sprite.Sprite):
         self.y_speed += self.y_acceleration
         if self.rect.left > SCREEN_WIDTH:
             self.kill()
+
+
 class Sparrow(pygame.sprite.Sprite):
     def __init__(self, color):
         super(Sparrow, self).__init__()
         self.color = color
         self.surf = pygame.image.load(f"images/MiniBossFly/{self.color}/1.png")
         self.rect = self.surf.get_rect()
-        self.speed = 25
-        self.image_number = 1
-        self.image_number_of_destroying = 1
+        self.speed = 8
+        self.image_number = 0
+        self.image_number_of_destroying = 0
         self.is_destroying = False
         sparrows.add(self)
         all_objects.add(self)
+
     def move(self):
         self.rect.move_ip(-self.speed, 0)
         if self.rect.right < 0:
             self.kill()
+
     def change_image(self):
         if not self.is_destroying:
             self.image_number += 1
@@ -107,9 +129,16 @@ class Sparrow(pygame.sprite.Sprite):
             self.surf = pygame.image.load(f"images/MiniBossFly/{self.color}/{self.image_number}.png")
         else:
             self.image_number_of_destroying += 1
-            self.surf = pygame.image.load(f"images/destroy_sparrow{self.image_number_of_destroying}.png")
-            if self.image_number_of_destroying == 14:
+            if self.image_number_of_destroying == 7:
                 self.kill()
+            else:
+                self.surf = pygame.image.load(
+                    f"images/destroy_{self.color}_sparrow{self.image_number_of_destroying}.png")
+
+    def destroy(self):
+        self.is_destroying = True
+        sparrows.remove(self)
+        destroying_sparrows.add(self)
 
 
 # class Bird(pygame.sprite.Sprite):
@@ -133,19 +162,17 @@ def run_game():
     CONVERTTOROCKET = pygame.USEREVENT + 3
     CREATESPARROW = pygame.USEREVENT + 4
     CHANGEIMAGEOFSPARROW = pygame.USEREVENT + 5
-    CHANGEIMAGEOFSPARROWAREDESTROYING = pygame.USEREVENT + 6
+    CHANGEIMAGEOFSTROYINGSPARROW = pygame.USEREVENT + 6
+    CHANGEIMAGEOFSTROYINGSPLANE = pygame.USEREVENT + 7
     pygame.time.set_timer(CUPHEADSHOOT, 120)
     pygame.time.set_timer(SHOOTBULLETANDBOMB, 120)
     pygame.time.set_timer(CONVERTTOROCKET, 130)
     pygame.time.set_timer(CREATESPARROW, 10000)
     pygame.time.set_timer(CHANGEIMAGEOFSPARROW, 300)
-    pygame.time.set_timer(CHANGEIMAGEOFSPARROWAREDESTROYING, 100)
+    pygame.time.set_timer(CHANGEIMAGEOFSTROYINGSPARROW, 100)
+    pygame.time.set_timer(CHANGEIMAGEOFSTROYINGSPLANE, 180)
     background = pygame.image.load("images/sky.png")
     background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
-    clouds = pygame.image.load("images/clouds.png")
-    clouds = pygame.transform.scale(clouds, (SCREEN_WIDTH, SCREEN_HEIGHT))
-    clouds2 = pygame.image.load("images/clouds2.png")
-    clouds2 = pygame.transform.scale(clouds2, (SCREEN_WIDTH, SCREEN_HEIGHT))
     mountains = pygame.image.load("images/mountain.png")
     mountains = pygame.transform.scale(mountains, (SCREEN_WIDTH + 1000, SCREEN_HEIGHT))
     running = True
@@ -156,13 +183,11 @@ def run_game():
     is_shooting = False
     is_converting_to_rocket = False
     mode = "bullet"
-    clock = pygame.time.Clock()
-    pygame.display.flip()
-    clock.tick(30)
+    # clock = pygame.time.Clock()
+    # pygame.display.flip()
+    # clock.tick(60)
     while running:
         screen.blit(background, (0, 0))
-        # screen.blit(clouds, (0, 0))
-        # screen.blit(clouds2, (0, 0))
         screen.blit(mountains, (0, 0))
         for event in pygame.event.get():
             key_pressed = pygame.key.get_pressed()
@@ -185,8 +210,9 @@ def run_game():
                     bomb.rect.y = plane.rect.y + plane.rect.height / 3 + 17
             elif event.type == CONVERTTOROCKET and is_converting_to_rocket:
                 number_of_converting_to_rocket += 1
-                if 1 <= number_of_converting_to_rocket <=5:
-                    image_of_converting_to_rocket = pygame.image.load(f"images/convert_to_rocket{number_of_converting_to_rocket}.png")
+                if 1 <= number_of_converting_to_rocket <= 5:
+                    image_of_converting_to_rocket = pygame.image.load(
+                        f"images/convert_to_rocket{number_of_converting_to_rocket}.png")
                     plane.surf = pygame.image.load(f"images/rocket{number_of_converting_to_rocket}.png")
                 elif 5 < number_of_converting_to_rocket <= 10:
                     plane.surf = pygame.image.load(f"images/rocket{number_of_converting_to_rocket}.png")
@@ -211,10 +237,11 @@ def run_game():
             elif event.type == CHANGEIMAGEOFSPARROW:
                 for sparrow in sparrows:
                     sparrow.change_image()
-            elif event.type == CHANGEIMAGEOFSPARROWAREDESTROYING:
+            elif event.type == CHANGEIMAGEOFSTROYINGSPARROW:
                 for sparrow in destroying_sparrows:
                     sparrow.change_image()
-
+            elif event.type == CHANGEIMAGEOFSTROYINGSPLANE and plane.is_destroying:
+                plane.chang_image()
 
         if not key_pressed[K_SPACE]:
             is_shooting = False
@@ -234,16 +261,30 @@ def run_game():
             bullet.move()
             hit_sparrows = pygame.sprite.spritecollide(bullet, sparrows, False)
             for sparrow in hit_sparrows:
-                sparrow.is_destroying = True
-                sparrows.remove(sparrow)
-                destroying_sparrows.add(sparrow)
+                sparrow.destroy()
                 bullet.kill()
                 break
         for bomb in bombs:
             bomb.move()
+            bomb.move()
+            hit_sparrows = pygame.sprite.spritecollide(bomb, sparrows, False)
+            for sparrow in hit_sparrows:
+                sparrow.destroy()
+                bomb.kill()
+                break
         for sparrow in sparrows:
             sparrow.move()
         plane.move(key_pressed)
+        if plane.is_rocket:
+            hit_objects = pygame.sprite.spritecollide(plane, all_objects, False)
+            for object in hit_objects:
+                if not isinstance(object, Plane):
+                    plane.destroy()
+                    if isinstance(object, Sparrow):
+                        for sparrow in sparrows:
+                            sparrow.destroy()
+                    break
+
         all_objects.update()
         if is_shooting:
             screen.blit(image_of_shooting,

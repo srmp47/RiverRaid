@@ -133,7 +133,8 @@ class Sparrow(pygame.sprite.Sprite):
                 self.kill()
             else:
                 self.surf = pygame.image.load(
-                    f"images/destroy_{self.color}_sparrow{self.image_number_of_destroying}.png")
+                 f"images/destroy_{self.color}_sparrow{self.image_number_of_destroying}.png")
+
 
     def destroy(self):
         self.is_destroying = True
